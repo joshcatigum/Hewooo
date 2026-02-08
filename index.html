@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Be My Valentine?</title>
+
+  <!-- iOS app-like meta (kept) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- Elegant + sosyal fonts (correct LINK tags) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+  :root{
+    --pink-1:#ffe4ef; --pink-2:#ffc1dd; --pink-3:#ff8fbc;
+    --text:#4a1f2b; --btn-yes:#ff3e8a;
+    --shadow: 0 10px 30px rgba(0,0,0,0.15);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; margin:0; }
+  body{
+    font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+    color:var(--text);
+    background: radial-gradient(1000px 1000px at 20% 20%, var(--pink-2), var(--pink-1));
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* ===== Envelope Landing Screen ===== */
+  .envelope-screen{
+    position:fixed; inset:0; z-index:999;
+    display:grid; place-items:center; padding:24px;
+    background: radial-gradient(950px 900px at 20% 20%, var(--pink-2), var(--pink-1));
+    cursor:pointer;
+    /* safety: while visible, it can accept clicks; once fading/hidden, we disable below */
+  }
+
+  .env-wrap{
+    position:relative;
+    width:min(86vw, 520px);
+    height:min(62vh, 360px);
+    perspective: 1200px;
+    overflow: visible; /* allow overlay label to sit above without clipping */
+  }
+
+  /* Cursive "Open me" label OVERLAY (always above, never blocks) */
+  .env-open-label{
+    position:absolute;
+    left:50%;
+    top:-34px; /* tweak to -28px/-40px if you want */
+    transform:translateX(-50%);
+    font-family:"Great Vibes", cursive; font-weight:400;
+    font-size: clamp(28px, 4.8vw, 46px); line-height:1.05;
+    color:#7a1238; text-shadow:0 2px 0 rgba(255,255,255,0.35);
+    user-select:none; pointer-events:none; /* NEVER intercept taps */
+    z-index:9999; /* sits visually on top of flap/seal */
+  }
+
+  .env-shadow{
+    position:absolute; inset:auto 0 0 0; height:16px; border-radius:50%;
+    filter: blur(10px); opacity:.35; background:rgba(0,0,0,.25); transform: translateY(12px) scale(.9);
+  }
+  .env-body{
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, #ffd6e7 0%, #ffb8d4 100%);
+    border:2px solid #ffc5dd; border-radius:12px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.18);
+    z-index:1;
+  }
+  /* Top triangular flap */
+  .env-flap{
+    position:absolute; left:0; right:0; top:0; height:52%;
+    background: linear-gradient(180deg, #ffc7db 0%, #ff9ec3 100%);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    border-top-left-radius:12px; border-top-right-radius:12px;
+    transform-origin: 50% 0%;
+    transform: rotateX(0deg);
+    transition: transform 480ms cubic-bezier(.17,.84,.22,1), filter .3s ease;
+    border:2px solid #ffc5dd; border-bottom:0;
+    z-index:2;
+  }
+
+  /* Heart Wax Seal */
+  .env-seal{
+    position:absolute;
+    left:50%; top:22%; transform: translate(-50%, -50%);
+    width:76px; height:76px; border-radius:50%;
+    background: radial-gradient(110% 110% at 35% 35%, #ff6aa2 0%, #e22b71 45%, #b31353 100%);
+    border:3px solid rgba(255, 170, 205, .8);
+    box-shadow: 0 10px 24px rgba(0,0,0,.25), inset 0 4px 8px rgba(255,255,255,.35), inset 0 -6px 10px rgba(0,0,0,.15);
+    display:grid; place-items:center; z-index:3;
+  }
+  .env-seal::after{
+    content:"";
+    position:absolute; inset:auto 12px 26px 12px; height:14px; border-radius:999px;
+    background: linear-gradient(180deg, rgba(255,255,255,.6), rgba(255,255,255,0));
+    filter: blur(1px); opacity:.8;
+  }
+  .seal-heart{
+    font-size:34px; color:#fff; text-shadow: 0 1px 0 rgba(0,0,0,.25);
+    transform: translateY(1px);
+  }
+  /* idle bounce */
+  @keyframes sealIdle {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -52%) scale(1.03); }
+  }
+  .envelope-screen .env-seal { animation: sealIdle 2.2s ease-in-out infinite; }
+
+  /* pop animation */
+  @keyframes sealPop {
+    0%   { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity:1; }
+    60%  { transform: translate(-50%, -30%) scale(.6) rotate(-18deg); opacity:.85; }
+    100% { transform: translate(-50%, -10%) scale(.2) rotate(-26deg); opacity:0; }
+  }
+  .envelope-screen.seal-pop .env-seal{
+    animation: sealPop 420ms cubic-bezier(.2,.9,.2,1) forwards;
+  }
+
+  /* LETTER: hidden initially, slides up on reveal */
+  .env-letter{
+    position:absolute; left:12%; right:12%; bottom:10%;
+    height:64%; border-radius:12px;
+    background: linear-gradient(180deg, #fff6f9 0%, #fff 100%);
+    border:1px solid #ffd1e5;
+    box-shadow: 0 12px 28px rgba(0,0,0,.18);
+    transform: translateY(60%); /* tucked inside envelope */
+    opacity:0; visibility:hidden;
+    transition: transform .42s cubic-bezier(.2,.8,.2,1), opacity .3s ease, visibility 0s linear .3s;
+    z-index:1; /* between body & flap */
+  }
+  .letter-inner{
+    position:absolute; inset:14px; border-radius:10px;
+    background: repeating-linear-gradient(180deg, transparent 0 28px, rgba(255,143,188,.08) 28px 30px);
+  }
+  .letter-line{
+    height:8px; width:68%; border-radius:6px; margin:14px 0;
+    background: #ff9fc4; opacity:.6;
+  }
+  .line-1{ width:72%; }
+  .line-2{ width:62%; opacity:.5; }
+  .line-3{ width:54%; opacity:.45; }
+
+  /* Sequence states */
+  .envelope-screen.opening .env-flap{
+    transform: rotateX(-160deg);
+    filter: brightness(1.05);
+  }
+  .envelope-screen.reveal-letter .env-letter{
+    opacity:1; visibility:visible; transform:translateY(0);
+    transition: transform .48s cubic-bezier(.2,.8,.2,1), opacity .32s ease, visibility 0s;
+  }
+
+  /* Fade out envelope; once fading/hidden, never intercept clicks */
+  .envelope-screen.fading,
+  .envelope-screen.hidden { pointer-events: none !important; }
+  .envelope-screen.fading{ animation: fadeOut 360ms ease forwards; }
+  .envelope-screen.hidden{ display: none !important; } /* hard remove from hit-testing */
+
+  @keyframes fadeOut{ to{ opacity:0; visibility:hidden; } }
+
+  /* Keep app hidden until envelope is dismissed */
+  #app{ visibility:hidden; }
+  .envelope-screen.hidden + #app{ visibility:visible; }
+
+  /* ===== Existing app styles (kept) + Sosyál card design ===== */
+  #app{
+    position:relative; min-height:100vh; min-height:100dvh; width:100%;
+    display:grid; place-items:center; padding:24px;
+  }
+  /* Hearts (spawn AFTER envelope opens) */
+  .hearts{
+    position:absolute; inset:0; overflow:hidden; z-index:1; pointer-events:none;
+  }
+  .heart{
+    position:absolute; color:#ff3e8a; opacity:.7; font-size:18px; animation:floatUp linear forwards;
+  }
+  @keyframes floatUp{
+    from{ transform:translateY(20dvh) scale(.8); opacity:0; }
+    10%{ opacity:.8; }
+    to{ transform:translateY(-110dvh) scale(1.2); opacity:0; }
+  }
+
+  /* --- Fancy "letter paper" card style --- */
+  .card{
+    position:relative; z-index:2;
+    text-align:center;
+
+    /* Paper look: layered gradients for very subtle texture */
+    background:
+      radial-gradient(1200px 600px at 50% 0%, rgba(255,255,255,0.9), rgba(255,255,255,0.78)),
+      linear-gradient(180deg, rgba(255,246,250,0.92), rgba(255,255,255,0.86));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+
+    /* Elegant double border feel */
+    border: 2px solid var(--pink-2);
+    border-radius: 20px;
+    box-shadow:
+      0 14px 36px rgba(0,0,0,0.16),
+      inset 0 0 0 1px rgba(255,255,255,0.6);
+
+    padding: 32px 26px 42px;
+    max-width:680px; width:min(92vw,680px);
+    touch-action:manipulation;
+
+    /* subtle paper grain */
+    background-image:
+      radial-gradient(rgba(255,143,188,0.045) 1px, transparent 1.5px),
+      radial-gradient(rgba(255,143,188,0.03) 1px, transparent 1.5px),
+      linear-gradient(180deg, rgba(255,246,250,0.92), rgba(255,255,255,0.86));
+    background-size: 18px 18px, 26px 26px, auto;
+    background-position: 0 0, 10px 8px, 0 0;
+  }
+  /* Corner heart accents */
+  .card::before,
+  .card::after{
+    content:"";
+    position:absolute; width:18px; height:18px;
+    background: radial-gradient(circle at 50% 40%, #ff6aa2, #e22b71);
+    transform: rotate(45deg);
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,.15));
+    opacity:.9;
+  }
+  .card::before{ left:12px; top:12px; border-radius: 4px 12px 4px 12px; }
+  .card::after{ right:12px; bottom:12px; border-radius: 12px 4px 12px 4px; }
+  /* Inner dashed frame */
+  .card .inner-frame{
+    position:absolute; inset:12px;
+    border:1.5px dashed rgba(255,143,188,0.45);
+    border-radius: 14px; pointer-events:none;
+  }
+
+  /* Sosyál cursive title */
+  h1{
+    margin:0 0 16px;
+    font-family: "Great Vibes", cursive; font-weight: 400;
+    font-size:clamp(36px, 6.2vw, 72px);
+    line-height:1.05; letter-spacing: 0.5px;
+    background: linear-gradient(180deg, #7a1238 0%, #b41e60 60%, #ff66a3 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 2px 0 rgba(255,255,255,0.35);
+  }
+
+  p.sub{ margin:0 0 18px; opacity:.85; font-size:14px; }
+
+  /* Intro GIF */
+  .intro-wrap{ margin:8px 0 18px; }
+  .intro-gif{
+    display:block;
+    max-width:min(86vw,420px); max-height:46dvh; object-fit:cover;
+    border-radius:14px; box-shadow:var(--shadow);
+    margin:0 auto;
+  }
+
+  .buttons{
+    display:inline-flex; align-items:center; justify-content:center; gap:14px;
+    position:relative; flex-wrap:wrap;
+  }
+  button{
+    border:0; border-radius:999px; padding:16px 28px; min-height:44px; min-width:44px;
+    font-size:18px; font-weight:700; cursor:pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background-color .2s ease, color .2s ease, opacity .25s ease;
+    user-select:none; will-change: transform,left,top;
+  }
+  button:active{ transform:scale(.98); }
+  #yesBtn{ background:var(--btn-yes); color:#fff; box-shadow:0 6px 20px rgba(255,62,138,.35); }
+  #yesBtn.grow{ transition:transform 180ms ease; }
+  #yesBtn:hover{ filter:brightness(1.05); }
+  #noBtn{
+    background:#e5e7eb; color:#111827; box-shadow:0 6px 20px rgba(0,0,0,.12);
+    position:relative; z-index:3;
+  }
+  #noBtn.sneaky{
+    position:absolute;
+    transition:left 220ms ease, top 220ms ease, transform 200ms ease, opacity 200ms ease;
+    touch-action:none;
+  }
+
+  /* Text + GIF kada "No" */
+  .no-reaction{ margin-top:14px; min-height:40px; transition: opacity .25s ease; }
+  .no-text{ margin:6px 0 10px; font-weight:600; }
+  .no-gif{
+    display:none; max-width:min(86vw,420px); max-height:46dvh; object-fit:cover;
+    border-radius:12px; box-shadow:var(--shadow); margin:0 auto;
+  }
+  .no-gif.show{ display:block; animation:pop 320ms cubic-bezier(.2,.8,.2,1); }
+
+  /* FINAL PROMPT */
+  .final-prompt{
+    display:none; margin-top:8px; animation:pop 360ms cubic-bezier(.2,.8,.2,1);
+  }
+  .final-text{ font-weight:800; font-size:clamp(16px,3.6vw,20px); margin:4px 0 8px; }
+  .final-gif{
+    display:block; max-width:min(86vw,420px); max-height:46dvh; object-fit:cover;
+    border-radius:12px; box-shadow:var(--shadow); margin:0 auto;
+  }
+
+  /* YES Overlay — only clickable when shown */
+  #overlay{
+    position:fixed; inset:0; display:grid; place-items:center;
+    background: radial-gradient(1200px 800px at 50% 10%, rgba(255,255,255,0.9), rgba(255,255,255,0.85)),
+                linear-gradient(180deg, var(--pink-2), var(--pink-3));
+    opacity:0; transform:scale(1.02);
+    transition:opacity 300ms ease, transform 300ms ease; z-index:10; padding:20px;
+    pointer-events:none; /* hidden by default */
+  }
+  #overlay.show{ opacity:1; pointer-events:auto; transform:scale(1); }
+  .overlay-content{ text-align:center; color:#7a1238; padding:12px; max-width:860px; animation:pop 400ms cubic-bezier(.2,.8,.2,1); z-index:2; }
+
+  /* Cursive overlay text */
+  .overlay-title{
+    font-family:"Great Vibes", cursive; font-weight:400;
+    font-size:clamp(36px,6.6vw,64px); margin:0 0 10px; line-height:1.02;
+    text-shadow:0 2px 0 rgba(255,255,255,0.35); color:#7a1238;
+  }
+  .overlay-sub{
+    font-family:"Great Vibes", cursive; font-weight:400;
+    font-size:clamp(22px,4.2vw,28px); margin:0 0 18px; opacity:.95; color:#7a1238;
+  }
+
+  .photo-wrap{ display:inline-block; margin-top:10px; background:#fff; border-radius:16px; padding:10px; box-shadow:0 10px 30px rgba(0,0,0,.15); }
+  .photo{ width:min(86vw,560px); max-height:70dvh; object-fit:cover; border-radius:12px; display:none; }
+  .photo.show{ display:block; animation:pop 320ms cubic-bezier(.2,.8,.2,1); }
+
+  /* Cute pulse sa YES kapag final prompt na */
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  .pulse { animation: pulse 900ms ease-in-out infinite; }
+
+  @keyframes pop{
+    0%{ transform:scale(.95); opacity:0; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    .heart{ animation:none !important; }
+    #yesBtn.grow, #noBtn.sneaky, .photo.show, .overlay-content, .final-prompt{ transition:none !important; animation:none !important; }
+    .pulse{ animation:none !important; }
+    .envelope-screen .env-seal{ animation:none !important; }
+  }
+
+  /* In-app browser banner (kept) */
+  .open-in-safari{
+    position:fixed; inset:0 auto auto 0; width:100%;
+    background:rgba(255,255,255,.9); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    border-bottom:1px solid #ffd1e6; box-shadow:0 2px 12px rgba(0,0,0,.08);
+    padding:10px 12px; display:none; align-items:center; gap:10px; z-index:1000;
+    color:#7a1238; font:600 15px/1.2 system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+  }
+  .open-in-safari.show{ display:flex; }
+  .ois-spacer{ flex:1; }
+  .ois-btn{ border:0; border-radius:999px; padding:10px 14px; font-weight:700; font-size:14px; background:#ff3e8a; color:#fff; box-shadow:0 4px 14px rgba(255,62,138,.25); cursor:pointer; }
+  .ois-btn.secondary{ background:#f1f5f9; color:#0f172a; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+  .ois-note{ display:block; width:100%; font-size:12px; color:#7a1238; opacity:.8; margin-top:6px; }
+
+  /* --- Compact state kapag wala na ang "No" --- */
+  .card.compact .buttons { margin-bottom: 6px; }
+  .card.compact #noReaction { display: none !important; }
+  .card.compact #finalPrompt { display: block !important; margin-top: 6px; }
+
+  /* (Optional) If you want the Yes button label cursive too, uncomment:
+  #yesBtn { font-family: "Great Vibes", cursive; font-weight: 400; font-size: 28px; padding: 12px 26px; }
+  */
+  </style>
+</head>
+<body>
+
+  <!-- ENVELOPE LANDING SCREEN -->
+  <div id="envelopeScreen" class="envelope-screen" role="dialog" aria-modal="true" aria-label="Open the envelope">
+    <div class="env-wrap">
+      <!-- Cursive label above the envelope (overlay) -->
+      <div class="env-open-label" aria-hidden="true">Open me 💌</div>
+
+      <div class="env-shadow"></div>
+      <div class="env-body"></div>
+      <div class="env-flap"></div>
+
+      <!-- Heart wax seal -->
+      <div class="env-seal" aria-hidden="true">
+        <span class="seal-heart" aria-hidden="true">❤</span>
+      </div>
+
+      <!-- Letter that reveals after flap opens -->
+      <div class="env-letter" aria-hidden="true">
+        <div class="letter-inner">
+          <div class="letter-line line-1"></div>
+          <div class="letter-line line-2"></div>
+          <div class="letter-line line-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app" aria-live="polite">
+    <div class="hearts" id="bgHearts" aria-hidden="true"></div>
+
+    <div class="card" id="card">
+      <h1>Can you be my Valentine?</h1>
+      <p class="sub">😊</p>
+
+      <div class="intro-wrap">
+        <img id="introGif" class="intro-gif" alt="Intro GIF">
+      </div>
+
+      <div class="buttons" id="btnRow">
+        <button id="yesBtn" type="button" aria-label="Yes" class="grow">Yes</button>
+        <button id="noBtn" type="button" aria-label="No">No</button>
+      </div>
+
+      <div id="noReaction" class="no-reaction" aria-live="polite">
+        <p id="noText" class="no-text"></p>
+        <img id="noGif" class="no-gif" alt="">
+      </div>
+
+      <div id="finalPrompt" class="final-prompt" aria-live="polite">
+        <p class="final-text">Mag yes ka nalang Dannah</p>
+        <img id="finalGif" class="final-gif" alt="Final prompt GIF">
+      </div>
+
+      <!-- Decorative inner frame -->
+      <div class="inner-frame" aria-hidden="true"></div>
+    </div>
+
+    <!-- YES overlay -->
+    <div id="overlay" role="dialog" aria-modal="true" aria-labelledby="yayTitle">
+      <div class="hearts" id="yayHearts" aria-hidden="true"></div>
+      <div class="overlay-content">
+        <h2 class="overlay-title" id="yayTitle">Yay! you're my valentine now &lt;3</h2>
+        <p class="overlay-sub">💞</p>
+        <div class="photo-wrap">
+          <img id="yayGif" class="photo" alt="Celebration GIF">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-app browser banner (kept) -->
+  <div id="ois" class="open-in-safari" role="region" aria-label="Open in Safari notice">
+    <span>You're viewing this inside an app browser.</span>
+    <div class="ois-spacer"></div>
+    <button id="oisOpen" class="ois-btn" type="button">Open in Safari</button>
+    <button id="oisCopy" class="ois-btn secondary" type="button">Copy link</button>
+    <span id="oisNote" class="ois-note" hidden>
+      If it doesn’t open, tap the three dots ••• and choose “Open in Safari”.
+    </span>
+  </div>
+
+  <script>
+  (function(){
+    const app = document.getElementById('app');
+    const yesBtn = document.getElementById('yesBtn');
+    const noBtn = document.getElementById('noBtn');
+    const overlay = document.getElementById('overlay');
+    const card = document.getElementById('card');
+
+    const bgHearts = document.getElementById('bgHearts');
+    const yayHearts = document.getElementById('yayHearts');
+
+    const introGif = document.getElementById('introGif');
+    const noText = document.getElementById('noText');
+    const noGif = document.getElementById('noGif');
+    const noReactionBox = document.getElementById('noReaction');
+
+    // Final prompt refs
+    const finalPrompt = document.getElementById('finalPrompt');
+    const finalGif = document.getElementById('finalGif');
+
+    // Envelope refs
+    const envelopeScreen = document.getElementById('envelopeScreen');
+
+    // YES overlay GIF element
+    const yayGif = document.getElementById('yayGif');
+
+    /* ============================
+       CONFIG — palitan mo freely
+       ============================ */
+    // 1) GIF sa unang page
+    const INTRO_GIF_URL = "https://media.tenor.com/jyqX8y7rB3YAAAAC/cat-love.gif";
+    // 2) GIF sa "Yes" overlay (your provided link)
+    const YES_GIF_URL = "https://media.tenor.com/9KafmEXl04cAAAAi/peach-goma.gif";
+    // 3) Random na text + GIF kada "No"
+    const NO_REACTIONS_SOURCE = [
+      { text: "Hala... sure ka ba? 🥺", gif: "https://media.tenor.com/FPzGMNfFGnYAAAAj/cute-cat.gif" },
+      { text: "Please? Isang yes lang", gif: "https://media1.tenor.com/m/pjBtpAFSnmgAAAAC/peach-goma-peach-and-goma.gif" },
+      { text: "Last na ‘to talaga… promise! 💗", gif: "https://media.tenor.com/KHYKpVtzG9kAAAAi/peach-and-goma-peach.gif" },
+      { text: "Sige naaaa Dannah!!🫶", gif: "https://media.tenor.com/UdThavVus9oAAAAi/peach-and.gif" },
+      { text: "Di ako susuko! 😤💘", gif: "https://media.tenor.com/RS6g_7a2eF4AAAAi/peach-and-goma-goma.gif" },
+      { text: "Dali na Dannah Marie", gif: "https://media.tenor.com/1QTB9AnN7RQAAAAi/peach-goma.gif" },
+      { text: "Okay last LAST na talaga 🙏", gif: "https://media.tenor.com/QezgGvvyBWYAAAAi/peachcat-crying.gif" }
+    ];
+    // 4) Final prompt GIF (pag wala na ang No)
+    const FINAL_GIF_URL = "https://media.tenor.com/gP0009R3r7UAAAAi/peach-goma-peach-and-goma.gif";
+    /* END CONFIG */
+
+    // ===== Helpers =====
+    const preload = (src) => { if(!src) return; const img = new Image(); img.referrerPolicy = "no-referrer"; img.src = src; };
+
+    // Shuffle (Fisher–Yates)
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
+      }
+      return a;
+    }
+
+    // Build a queue of random reactions (no repeats until ubos)
+    let reactionQueue = shuffle(NO_REACTIONS_SOURCE);
+
+    // Preload images
+    [INTRO_GIF_URL, YES_GIF_URL, FINAL_GIF_URL].forEach(preload);
+    reactionQueue.forEach(item => preload(item.gif));
+
+    // Set intro GIF (visible by default once app is shown)
+    if (INTRO_GIF_URL) {
+      introGif.src = INTRO_GIF_URL;
+      introGif.alt = "Intro animation";
+      introGif.style.display = 'block';
+    } else {
+      introGif.style.display = 'none';
+    }
+
+    let sneakyMode = false;
+    let yesScale = 1.0;
+    let scale = 1.0;
+    let noAttempts = 0;
+
+    const YES_GROWTH = 1.07;
+    const YES_MAX = 2.0;
+    // Limit: 6 attempts
+    const MAX_NO_ATTEMPTS = 6;
+
+    function applyYesScale(){ yesBtn.style.transform = `scale(${Math.min(yesScale, YES_MAX)})`; }
+    const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    function spawnHearts(targetEl, count = 24){
+      if (!targetEl) return;
+      targetEl.innerHTML = "";
+      const viewW = window.innerWidth;
+      for (let i = 0; i < count; i++){
+        const span = document.createElement('span');
+        span.className = 'heart';
+        span.textContent = '❤';
+        const left = Math.random() * viewW;
+        const duration = randInt(5000, 9000);
+        const delay = randInt(0, 2000);
+        const size = randInt(14, 32);
+        const hueShift = randInt(-8, 8);
+        span.style.left = left + 'px';
+        span.style.bottom = '-10dvh';
+        span.style.fontSize = size + 'px';
+        span.style.filter = `hue-rotate(${hueShift}deg)`;
+        span.style.animationDuration = duration + 'ms';
+        span.style.animationDelay = delay + 'ms';
+        targetEl.appendChild(span);
+      }
+    }
+
+    // No hearts on initial load; trigger after envelope reveal.
+
+    function moveNoButtonRandom(){
+      const appRect = app.getBoundingClientRect();
+      const btnRect = noBtn.getBoundingClientRect();
+      const pad = 12;
+      const maxLeft = Math.max(pad, appRect.width - btnRect.width - pad);
+      const maxTop = Math.max(pad, appRect.height - btnRect.height - pad);
+      const newLeft = Math.random() * (maxLeft - pad) + pad;
+      const newTop = Math.random() * (maxTop - pad) + pad;
+      noBtn.style.left = `${newLeft}px`;
+      noBtn.style.top = `${newTop}px`;
+    }
+    function ensureSneakyMode(){
+      if (sneakyMode) return;
+      sneakyMode = true;
+      const btnRect = noBtn.getBoundingClientRect();
+      const appRect = app.getBoundingClientRect();
+      noBtn.classList.add('sneaky');
+      noBtn.style.left = `${btnRect.left - appRect.left}px`;
+      noBtn.style.top = `${btnRect.top - appRect.top }px`;
+      app.appendChild(noBtn);
+    }
+    function nextReaction(){
+      if (reactionQueue.length === 0) {
+        reactionQueue = shuffle(NO_REACTIONS_SOURCE);
+      }
+      return reactionQueue.shift();
+    }
+    function showNoReaction(){
+      const data = nextReaction() || {};
+      noText.textContent = data.text || "";
+      if (data.gif){
+        noGif.referrerPolicy = "no-referrer";
+        noGif.src = data.gif;
+        noGif.alt = "Reaction GIF";
+        noGif.classList.add('show');
+      } else {
+        noGif.classList.remove('show');
+      }
+      noReactionBox.style.opacity = '1';
+    }
+
+    // --- Input mode detection (desktop vs mobile) ---
+    const isCoarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
+    // One dodge per attempt + random reaction + 6-attempt cap
+    function maybeDodgeOnce(e){
+      if (noAttempts >= MAX_NO_ATTEMPTS) return;
+      moveNoButtonRandom();
+      yesScale *= YES_GROWTH;
+      applyYesScale();
+      scale *= 0.92;
+      noBtn.style.transform = `scale(${Math.max(scale, 0.6)})`;
+      showNoReaction();
+      noAttempts++;
+      spawnHearts(bgHearts, 22);
+
+      if (noAttempts >= MAX_NO_ATTEMPTS) {
+        // Hide No button
+        noBtn.style.opacity = '0';
+        noBtn.style.pointerEvents = 'none';
+        setTimeout(()=> noBtn.style.display='none', 260);
+
+        // Fade out reaction box, then show final prompt snug under Yes
+        setTimeout(()=>{
+          noReactionBox.style.opacity = '0';
+          card.classList.add('compact');
+          finalGif.referrerPolicy = "no-referrer";
+          finalGif.src = FINAL_GIF_URL;
+          yesBtn.classList.add('pulse');
+        }, 300);
+      }
+    }
+
+    // MOBILE / TOUCH
+    if (isCoarsePointer) {
+      const dodge = (e)=>{ e.preventDefault(); ensureSneakyMode(); maybeDodgeOnce(e); };
+      noBtn.addEventListener('pointerdown', dodge, { passive:false });
+      noBtn.addEventListener('touchstart', dodge, { passive:false });
+    } else {
+      // DESKTOP / MOUSE
+      noBtn.addEventListener('mousedown', (e)=>{ e.preventDefault(); ensureSneakyMode(); maybeDodgeOnce(e); }, { passive:false });
+      noBtn.addEventListener('click', (e)=>{ e.preventDefault(); /* prevent real click */ }, { passive:false });
+    }
+
+    let resizeTO;
+    window.addEventListener('resize', () => {
+      if (!sneakyMode) return;
+      clearTimeout(resizeTO);
+      resizeTO = setTimeout(moveNoButtonRandom, 120);
+    });
+
+    function showYay(){
+      yayGif.referrerPolicy = "no-referrer";
+      yayGif.src = YES_GIF_URL;
+      yayGif.classList.add('show');
+      yayGif.alt = "Celebration GIF";
+      overlay.classList.add('show');
+      spawnHearts(yayHearts, 28);
+    }
+    yesBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); showYay(); }, { passive: false });
+    yesBtn.addEventListener('click', showYay);
+
+    // ===== Envelope open sequence (seal → flap → letter → fade → reveal app) =====
+    function openEnvelope(){
+      if (!envelopeScreen || envelopeScreen.classList.contains('opening') ||
+          envelopeScreen.classList.contains('fading') || envelopeScreen.classList.contains('hidden')) return;
+
+      // 1) Wax seal pop
+      envelopeScreen.classList.add('seal-pop');
+
+      // 2) Start flap opening
+      setTimeout(()=>{
+        envelopeScreen.classList.add('opening');
+
+        // 3) Reveal the letter shortly after flap begins
+        setTimeout(()=>{
+          envelopeScreen.classList.add('reveal-letter');
+        }, 180);
+      }, 360);
+
+      // 4) Fade out envelope after the letter has had its moment
+      setTimeout(()=>{
+        envelopeScreen.classList.add('fading');
+      }, 1200);
+
+      // 5) Show app + hearts (HARD remove overlay from hit-testing)
+      setTimeout(()=>{
+        envelopeScreen.classList.add('hidden'); // triggers #app visibility via CSS
+        envelopeScreen.style.display = 'none';   // extra safety
+        spawnHearts(bgHearts, 26);
+      }, 1560);
+    }
+
+    // Envelope interactions: tap/click anywhere on the overlay
+    if (envelopeScreen){
+      envelopeScreen.addEventListener('click', (e)=>{
+        if (!envelopeScreen.classList.contains('opening')) openEnvelope();
+      });
+      // keyboard accessibility (Enter/Space)
+      envelopeScreen.tabIndex = 0;
+      envelopeScreen.addEventListener('keydown', (e)=>{
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEnvelope(); }
+      });
+    }
+  })();
+  </script>
+
+  <!-- In-app browser helper (kept) -->
+  <script>
+  (function(){
+    const canonical = document.querySelector('link[rel="canonical"]')?.href;
+    const og = document.querySelector('meta[property="og:url"]')?.content;
+    const PUBLIC_URL = og || canonical || window.location.href;
+    const ua = navigator.userAgent || '';
+    const inApp = /FBAN|FB_IAB|FBAV|Instagram|Line|LINE|Twitter|TikTok|LinkedIn|Snapchat|Pinterest|WeChat|Weibo/i.test(ua);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    const banner = document.getElementById('ois');
+    const btnOpen = document.getElementById('oisOpen');
+    const btnCopy = document.getElementById('oisCopy');
+    const note = document.getElementById('oisNote');
+
+    if (inApp && !isStandalone) banner.classList.add('show');
+
+    function openInSafari(){
+      try{ const w=window.open(PUBLIC_URL,'_blank','noopener,noreferrer'); if(w){ note.hidden=false; return; } }catch(e){}
+      try{ window.location.href=PUBLIC_URL; setTimeout(()=> note.hidden=false,400);}catch(e){ note.hidden=false; }
+    }
+    async function copyLink(){
+      try{ await navigator.clipboard.writeText(PUBLIC_URL); btnCopy.textContent='Copied!'; setTimeout(()=> btnCopy.textContent='Copy link',1500);}
+      catch(e){ const ok=window.prompt('Copy this link:', PUBLIC_URL); if(ok!==null){ btnCopy.textContent='Copied?'; setTimeout(()=> btnCopy.textContent='Copy link',1500);} }
+    }
+    btnOpen && btnOpen.addEventListener('click', openInSafari);
+    btnCopy && btnCopy.addEventListener('click', copyLink);
+  })();
+  </script>
+</body>
+</html>
